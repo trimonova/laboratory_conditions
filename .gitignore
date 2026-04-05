@@ -1,0 +1,15 @@
+# Results (large numpy arrays)
+*.npy
+result_folder/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code
+.claude/

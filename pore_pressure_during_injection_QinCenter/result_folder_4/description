@@ -1,0 +1,4 @@
+изменила newFuncMatrix_fix_5
+скорость вычисляется только через dp/dr
+v_mult_grad_func_matrix[n][m] = -perm / viscosity_matrix[n][m] * grad_p[0][n][m] * (-1)
+
