@@ -1,120 +1,122 @@
-# Laboratory Conditions: Pore Pressure Modeling
+# Pore Pressure Simulation
 
-Numerical simulation of pore pressure distribution during fluid injection into laboratory rock samples. The project models two-phase flow (oil/water) in porous media with fracture propagation using finite difference methods in cylindrical coordinates.
+Numerical simulation of pore pressure distribution during fluid injection into laboratory rock samples. Two-phase flow (oil/water) in porous media with fracture propagation, using finite difference methods in cylindrical coordinates.
 
-## Injection Configurations
+## Installation
 
-- **QinCenter** — center point injection through a single wellbore
-- **QinPackers** — injection through packer-style arrangements (multi-point injection)
-
-## Physical Model
-
-- Two-phase fluid displacement (oil and water) in heterogeneous porous media
-- Pressure diffusion solved implicitly (backward Euler) on a non-uniform radial grid
-- Darcy flow with variable viscosity depending on local fluid phase
-- Dynamic tracking of the displacement front boundary
-- Fracture geometry specification and propagation
-
-## Project Structure
-
-```
-laboratory_conditions/
-├── pore_pressure_during_injection_QinCenter/
-│   ├── QinCenter/                    # Core calculation modules
-│   ├── QinCenter_attempt_2_Sav/      # Alternative implementation variant
-│   ├── experiment_data/              # Lab measurements and comparison scripts
-│   ├── result_folder*/               # Simulation output variants
-│   ├── find_pore_pressure_during_injection_QinCenter.py  # Main entry point
-│   └── input_parameters.py           # Configuration
-│
-├── pore_pressure_during_injection_QinPackers/
-│   ├── QinPackers/                   # Core calculation modules
-│   ├── QinPackers_corr_Sav/          # Corrected variant
-│   ├── experiment_data/              # Lab measurements and comparison scripts
-│   ├── result_folder/                # Simulation output
-│   ├── find_pore_pressure_during_injection_QinPackers.py  # Main entry point
-│   └── input_parameters.py           # Configuration
-```
-
-### Key Modules
-
-| Module | Purpose |
-|--------|---------|
-| `find_pore_pressure_*.py` | Sparse matrix pressure solver (scipy.sparse.linalg.spsolve) |
-| `find_viscosity.py` | Effective viscosity calculation based on oil/water fraction |
-| `find_bound_coords.py` | Displacement front boundary tracking |
-| `find_func_matrix_remake.py` | Phase distribution matrix update after displacement |
-| `newFuncMatrix_fix_5.py` | Velocity field from pressure gradients (Darcy's law) |
-| `find_area.py` | Oil area fraction via polygon geometry (Shapely) |
-| `start_to_do_replacement.py` | Fracture geometry and boundary condition initialization |
-| `plot_results.py` | Contour plots of pressure, velocity, and phase distribution |
-
-## Dependencies
-
-- Python 3
-- NumPy
-- SciPy
-- Matplotlib
-- Shapely
-- h5py
-
-Install with:
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-pip install numpy scipy matplotlib shapely h5py
+uv sync              # install dependencies
+uv sync --all-extras # install with dev tools (pytest, ruff)
 ```
 
 ## Usage
 
-### 1. Configure parameters
-
-Edit `input_parameters.py` in the corresponding directory. Key parameters:
-
-| Parameter | Default (QinCenter) | Description |
-|-----------|---------------------|-------------|
-| `perm` | 2×10⁻¹⁵ m² | Rock permeability |
-| `porosity` | 0.4 | Porosity |
-| `mu_oil` | 0.2 Pa·s | Oil viscosity |
-| `mu_water` | 0.002 Pa·s | Water viscosity |
-| `Q_center` | 0.2×10⁻⁶ m³/s | Injection flow rate |
-| `R` | 0.215 m | Sample radius |
-| `r_well` | 0.008 m | Well radius |
-
-### 2. Run simulation
+### Run simulation
 
 ```bash
-cd pore_pressure_during_injection_QinCenter
-python find_pore_pressure_during_injection_QinCenter.py
+uv run pore-pressure run --config configs/default.yaml --no-plots
 ```
 
-The simulation iterates through time steps, saving results as `.npy` files and displaying plots.
-
-### 3. Visualize results
+With interactive plots:
 
 ```bash
-cd result_folder
-python plot_results.py
+uv run pore-pressure run --config configs/default.yaml
 ```
+
+Custom output directory:
+
+```bash
+uv run pore-pressure run --config configs/default.yaml --output results/run_001
+```
+
+### Compare with experiment
+
+```bash
+uv run pore-pressure compare --config configs/default.yaml --results output/
+```
+
+### From Python / IDE
+
+```python
+from pore_pressure.config import load_config
+from pore_pressure.simulation import run_simulation, save_results
+
+config = load_config("configs/default.yaml")
+result = run_simulation(config, show_plots=True)
+save_results(result, "output/")
+```
+
+## Configuration
+
+All simulation parameters are in `configs/default.yaml`:
+
+| Section | Key parameters |
+|---------|---------------|
+| `rock` | permeability, porosity, compressibility |
+| `fluid` | water/oil viscosity, compressibility |
+| `geometry` | sample radius, well radius |
+| `fracture` | angles, lengths, oval width |
+| `grid` | radial/angular step sizes |
+| `time` | time step, number of steps |
+| `injection` | flow rate, seed area |
+
+## Project Structure
+
+```
+├── pyproject.toml          # Project metadata, dependencies
+├── configs/
+│   └── default.yaml        # Simulation parameters
+├── data/
+│   └── experiment/
+│       └── data2.mat       # Lab pressure measurements
+├── src/pore_pressure/
+│   ├── config.py           # YAML -> SimulationConfig dataclass
+│   ├── grid.py             # Coordinate grid construction
+│   ├── solver.py           # Sparse matrix pressure solver
+│   ├── velocity.py         # Velocity field (Darcy's law)
+│   ├── viscosity.py        # Effective viscosity from oil/water fractions
+│   ├── level_set.py        # Level-set advection (upwind scheme)
+│   ├── boundary.py         # Displacement front tracking
+│   ├── reconstruction.py   # Level-set reinitialization
+│   ├── fracture.py         # Initial fracture geometry
+│   ├── geometry.py         # Cell area computation (Shapely)
+│   ├── simulation.py       # Main time-stepping loop
+│   ├── plotting.py         # Visualization
+│   ├── experiment_data.py  # MAT file reader
+│   ├── comparison.py       # Experiment vs simulation comparison
+│   └── cli.py              # Command-line interface
+├── tests/
+│   └── test_config.py
+└── output/                 # Simulation results (gitignored)
+```
+
+## Physical Model
+
+- Two-phase displacement (oil/water) in porous media
+- Implicit pressure solver (backward Euler, sparse matrix, `scipy.sparse.linalg.spsolve`)
+- Darcy flow with variable viscosity
+- Level-set method for displacement front tracking
+- Upwind advection scheme for numerical stability
+- Non-uniform radial grid (~414 nodes), uniform angular grid (360 nodes, 1 deg)
 
 ## Output
 
-Each run produces the following arrays in `result_folder/`:
+Results are saved as `.npy` files:
 
 | File | Content |
 |------|---------|
-| `Pres_distrib_in_Time_2.npy` | Pressure distribution (N_r × M_fi × T) |
-| `viscosity_in_Time.npy` | Effective viscosity field |
-| `Func_matrix_in_Time.npy` | Phase distribution (1=oil, −1=water) |
-| `velocity_in_Time.npy` | Velocity magnitude field |
-| `bound_coords_cart_in_Time.npy` | Displacement front (cartesian) |
-| `bound_coords_rad_in_Time.npy` | Displacement front (polar) |
+| `Pres_distrib_in_Time_2.npy` | Pressure field over time |
+| `viscosity_in_Time.npy` | Viscosity field |
+| `Func_matrix_in_Time.npy` | Level-set function |
+| `velocity_in_Time.npy` | Velocity field |
+| `bound_coords_*.npy` | Displacement front coordinates |
 
-## Experimental Validation
+## Development
 
-The `experiment_data/` directories contain laboratory measurements (`data2.mat`) and comparison scripts (`comparison_exp_simulat.py`) for validating simulation results against pressure sensor data from real injection experiments.
-
-## Grid
-
-- **Radial**: Non-uniform, ~425 nodes (finer near the well)
-- **Angular**: Uniform, 360 nodes (1° spacing)
-- **Time step**: 0.5 s
+```bash
+uv run pytest          # run tests
+uv run ruff check src/ # lint
+uv run ruff format src/ # format
+```

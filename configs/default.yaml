@@ -1,0 +1,51 @@
+# Параметры симуляции порового давления
+
+rock:
+  permeability: 2.0e-15       # м², проницаемость
+  porosity: 0.4               # пористость
+  compressibility: 5.0e-10    # Па⁻¹, сжимаемость скелета (Cr)
+
+fluid:
+  water_viscosity: 2.0e-3     # Па·с
+  oil_viscosity: 0.2          # Па·с
+  compressibility: 1.0e-9     # Па⁻¹, сжимаемость флюида (Cf)
+  total_compressibility_multiplier: 25  # множитель для (Cf + Cr)
+
+geometry:
+  sample_radius: 0.215        # м, радиус образца (R)
+  well_radius: 0.008          # м, радиус скважины (r_well)
+
+fracture:
+  angle_1_deg: 45.0           # градусы (π/4)
+  angle_2_deg: 225.0          # градусы (5π/4)
+  length_1: 0.01              # м
+  length_2: 0.01              # м
+  oval_width: 0.005           # м, ширина начальной области замещения
+
+grid:
+  delta_r: 0.0005             # м, шаг по радиусу
+  delta_r_fine: 0.0005        # м, мелкий шаг (около скважины)
+  R_for_fine: 0.02            # м, радиус зоны мелкой сетки
+  delta_fi_deg: 1.0           # градусы, угловой шаг
+
+time:
+  delta_t: 0.5                # с, временной шаг
+  num_steps: 50               # количество временных шагов (T_exp)
+  T_exp_dir: 2                # с
+
+injection:
+  flow_rate: 2.0e-7           # м³/с (Q_center = 0.2 × 10⁻⁶)
+  seed_area: 1.0e-4           # м² (0.01 × 0.01)
+
+initial_pressure: 0.0         # Па
+
+# Опционально: путь к файлу начального распределения давления (.npy)
+# Если null — используется нулевое начальное давление
+initial_pressure_file: null
+
+# Путь к экспериментальным данным
+experiment_data_file: "data/experiment/data2.mat"
+
+output:
+  directory: "output"
+  show_plots: true
