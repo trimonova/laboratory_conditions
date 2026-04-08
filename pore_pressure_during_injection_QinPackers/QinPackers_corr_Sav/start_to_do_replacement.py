@@ -91,44 +91,39 @@ def replace_boundary(frac_angle_1, frac_angle_2, oval_width, frac_length_1, frac
     line_2 = geom.LineString(sort_bound_coords_2)
     polygon_2 = geom.Polygon(sort_bound_coords_2)
 
-    func_list_0 = []
-    func_list_end = []
-    for m in range(M_fi_full):
-        for n in range(N_r_full):
-            point = geom.Point(coord_matrix[n][m])
-            if polygon_1.contains(point):
-                Func_matrix[n][m] = point.distance(line_1)
-            elif polygon_2.contains(point):
-                Func_matrix[n][m] = point.distance(line_2)
-            else:
-                point_dist_line_1 = point.distance(line_1)
-                point_dist_line_2 = point.distance(line_2)
-                Func_matrix[n][m] = -min([point_dist_line_1, point_dist_line_2])
-    for m in range(M_fi_full):
-        for n in range(N_r_full):
-            point = geom.Point(coord_matrix_in_cell_center[n][m])
-            if polygon_1.contains(point):
-                Func_matrix_in_cell_center[n][m] = point.distance(line_1)
-            elif polygon_2.contains(point):
-                Func_matrix_in_cell_center[n][m] = point.distance(line_2)
-            else:
-                point_dist_line_1 = point.distance(line_1)
-                point_dist_line_2 = point.distance(line_2)
-                Func_matrix_in_cell_center[n][m] = -min([point_dist_line_1, point_dist_line_2])
+    import shapely as _shapely
 
-        point_center = geom.Point((r_well - delta_r / 2)*np.cos(m*delta_fi_list[m] + delta_fi_list[m]/2), (r_well - delta_r / 2)*np.sin(m*delta_fi_list[m] + delta_fi_list[m]/2) )
-        #point_center = geom.Point((r_well - delta_r)*np.cos(m*delta_fi_list[m]), (r_well - delta_r)*np.sin(m*delta_fi_list[m]))
-        point_dist_line_1 = point_center.distance(line_1)
-        point_dist_line_2 = point_center.distance(line_2)
-        func_list_0.append(-min([point_dist_line_1, point_dist_line_2]))
+    # --- Векторное вычисление level-set (Shapely 2.0) ---
+    # Вместо двойного цикла for m / for n с поточечными Point/contains/distance
+    # создаём все точки разом и вызываем операции один раз на весь массив.
 
-        point_end = geom.Point((r_well + (N_r_full-1)*delta_r + delta_r / 2) * np.cos(m * delta_fi_list[m] + delta_fi_list[m]/2),
-                                  (r_well + (N_r_full-1)*delta_r + delta_r / 2) * np.sin(m * delta_fi_list[m] + delta_fi_list[m]/2))
-        #point_end = geom.Point((r_well + n * delta_r + delta_r) * np.cos(m * delta_fi_list[m]),
-        #                       (r_well + n * delta_r + delta_r) * np.sin(m * delta_fi_list[m]))
-        point_dist_line_1 = point_end.distance(line_1)
-        point_dist_line_2 = point_end.distance(line_2)
-        func_list_end.append(-min([point_dist_line_1, point_dist_line_2]))
+    def _compute_level_set(coord_mat):
+        x = np.array([[coord_mat[n][m][0] for m in range(M_fi_full)] for n in range(N_r_full)])
+        y = np.array([[coord_mat[n][m][1] for m in range(M_fi_full)] for n in range(N_r_full)])
+        pts = _shapely.points(x.ravel(), y.ravel())
+        mask_1 = _shapely.contains(polygon_1, pts)
+        mask_2 = _shapely.contains(polygon_2, pts)
+        dist_1 = _shapely.distance(line_1, pts)
+        dist_2 = _shapely.distance(line_2, pts)
+        return np.where(mask_1, dist_1, np.where(mask_2, dist_2, -np.minimum(dist_1, dist_2))).reshape(N_r_full, M_fi_full)
+
+    Func_matrix = _compute_level_set(coord_matrix)
+    Func_matrix_in_cell_center = _compute_level_set(coord_matrix_in_cell_center)
+
+    # Ghost-точки у скважины и на внешней границе
+    angles = np.array([m * delta_fi_list[m] + delta_fi_list[m] / 2 for m in range(M_fi_full)])
+
+    r_0 = r_well - delta_r / 2
+    pts_0 = _shapely.points(r_0 * np.cos(angles), r_0 * np.sin(angles))
+    dist_0_1 = _shapely.distance(line_1, pts_0)
+    dist_0_2 = _shapely.distance(line_2, pts_0)
+    func_list_0 = (-np.minimum(dist_0_1, dist_0_2)).tolist()
+
+    r_end = r_well + (N_r_full - 1) * delta_r + delta_r / 2
+    pts_end = _shapely.points(r_end * np.cos(angles), r_end * np.sin(angles))
+    dist_end_1 = _shapely.distance(line_1, pts_end)
+    dist_end_2 = _shapely.distance(line_2, pts_end)
+    func_list_end = (-np.minimum(dist_end_1, dist_end_2)).tolist()
 
     return Func_matrix, Func_matrix_in_cell_center, func_list_0, func_list_end
 

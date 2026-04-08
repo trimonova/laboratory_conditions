@@ -29,7 +29,7 @@ from matplotlib.collections import PatchCollection
 #Pres_distrib = Pres_distrib_in_time[-1]
 
 print(M_1, M_2)
-T_exp = 50
+T_exp = 5
 R = 0.215
 
 # чтобы трещина проходила через границы ячеек, а не через их центры
